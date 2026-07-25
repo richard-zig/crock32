@@ -1,0 +1,11 @@
+.{
+    .name = .crock32,
+    .version = "0.0.0",
+    .fingerprint = 0x2b178dccc97b9013, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.0-dev.1456+2b1c6633a",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
