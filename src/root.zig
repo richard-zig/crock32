@@ -43,10 +43,10 @@ pub fn decode(str: []const u8) Crock32Error!u64 {
     const cutoff: u64 = ((1 << 64) - 1) / 32 + 1;
     var n: u64 = 0;
     for (str) |char| {
-        if (n >= cutoff) return Crock32Error.OverflowsU64;
         const c = decodeChar(char);
         if (c == 254) continue;
         if (c >= 32) return Crock32Error.UnexpectedChar;
+        if (n >= cutoff) return Crock32Error.OverflowsU64;
         n = n * 32 + c;
     }
     return n;
