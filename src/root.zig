@@ -112,6 +112,10 @@ test "decodeCheck" {
     try std.testing.expect(val == 983072);
 }
 
+test "decodeCheck bad check" {
+    try std.testing.expect(decodeCheck("yolo=") == Crock32Error.CheckFailed);
+}
+
 test "encodeCheck" {
     var buf: [5]u8 = undefined;
     const str = try encodeCheck(buf[0..], 983072);
