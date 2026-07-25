@@ -1,6 +1,6 @@
 # Crock32
 
-This is a zig implementation of Douglas Crockford's [base32 encoding scheme](See: https://www.crockford.com/base32.html).
+This is a zig implementation of Douglas Crockford's (base32 encoding scheme)[See: https://www.crockford.com/base32.html].
 
 ## Installation
 
