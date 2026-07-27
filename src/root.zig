@@ -96,6 +96,32 @@ pub fn encodeUpperCheck(buf: []u8, n: u64) Crock32Error![]const u8 {
     return buf[buf.len - str.len - 1 ..];
 }
 
+fn pseudo(io: std.Io) u64 {
+    var source: std.Random.IoSource = .{ .io = io };
+    const rand = source.interface();
+    const r = rand.int(u64);
+    const now: i64 = @truncate(std.Io.Clock.now(.real, io).toNanoseconds());
+    if (now < 0) return r;
+    const t: u64 = @intCast(now);
+    return (t << 16 & 0xFFFF0000) | (r & 0xFFFF);
+}
+
+pub fn puid(io: std.Io, buf: []u8) Crock32Error![]const u8 {
+    return encode(buf, pseudo(io));
+}
+
+pub fn puidCheck(io: std.Io, buf: []u8) Crock32Error![]const u8 {
+    return encodeCheck(buf, pseudo(io));
+}
+
+pub fn puidUpper(io: std.Io, buf: []u8) Crock32Error![]const u8 {
+    return encodeUpper(buf, pseudo(io));
+}
+
+pub fn puidUpperCheck(io: std.Io, buf: []u8) Crock32Error![]const u8 {
+    return encodeUpperCheck(buf, pseudo(io));
+}
+
 test "decode" {
     const val = try decode("yolo");
     try std.testing.expect(val == 983072);
