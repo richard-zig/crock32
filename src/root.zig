@@ -4,7 +4,7 @@ pub const Crock32Error = error{
     UnexpectedChar,
     OverflowsU64,
     BufferOverflow,
-    CannotCheck,
+    TooShort,
     UnexpectedCheckChar,
     CheckFailed,
 };
@@ -39,6 +39,8 @@ fn decodeChar(b: u8) u8 {
     };
 }
 
+// decode performs case insenstive decoding of a crock32 encoded string
+// use for strings encoded by encode() or encodeUpper()
 pub fn decode(str: []const u8) Crock32Error!u64 {
     const cutoff: u64 = ((1 << 64) - 1) / 32 + 1;
     var n: u64 = 0;
@@ -52,8 +54,10 @@ pub fn decode(str: []const u8) Crock32Error!u64 {
     return n;
 }
 
+// decodeCheck performs case insensitive decoding of crock32 encoded strings
+// with a check character (i.e. created with encodeCheck() or encodeUpperCheck())
 pub fn decodeCheck(str: []const u8) Crock32Error!u64 {
-    if (str.len < 2) return Crock32Error.CannotCheck;
+    if (str.len < 2) return Crock32Error.TooShort;
     const check = decodeChar(str[str.len - 1]);
     if (check > 36) return Crock32Error.UnexpectedCheckChar;
     const val = try decode(str[0 .. str.len - 1]);
@@ -74,10 +78,14 @@ fn enc(d: []const u8, buf: []u8, n: u64) Crock32Error![]const u8 {
     return buf[i..];
 }
 
+// encode n with Crockford's base32 encoding scheme in lower case
+// the buffer should be long enough to hold the result, use
+// max_buf_len if unsure
 pub fn encode(buf: []u8, n: u64) Crock32Error![]const u8 {
     return enc(digits, buf, n);
 }
 
+// encodeCheck encodes n and adds check character to the result
 pub fn encodeCheck(buf: []u8, n: u64) Crock32Error![]const u8 {
     if (buf.len < 2) return Crock32Error.BufferOverflow;
     const str = try encode(buf[0 .. buf.len - 1], n);
@@ -85,10 +93,12 @@ pub fn encodeCheck(buf: []u8, n: u64) Crock32Error![]const u8 {
     return buf[buf.len - str.len - 1 ..];
 }
 
+// encode upper uses upper case characters for the encoding
 pub fn encodeUpper(buf: []u8, n: u64) Crock32Error![]const u8 {
     return enc(digitsUpper, buf, n);
 }
 
+// encodeUpperCheck uses upper case characters and adds a check character
 pub fn encodeUpperCheck(buf: []u8, n: u64) Crock32Error![]const u8 {
     if (buf.len < 2) return Crock32Error.BufferOverflow;
     const str = try encodeUpper(buf[0 .. buf.len - 1], n);
@@ -96,30 +106,12 @@ pub fn encodeUpperCheck(buf: []u8, n: u64) Crock32Error![]const u8 {
     return buf[buf.len - str.len - 1 ..];
 }
 
-fn pseudo(io: std.Io) u64 {
+// pseudo is a helper for creating pseudo unique IDs of a modest length (about 7 chars)
+// use with encode e.g. encode(buf[0..], pseudo(io))
+pub fn pseudo(io: std.Io) u64 {
     var source: std.Random.IoSource = .{ .io = io };
     const rand = source.interface();
-    const r = rand.int(u64);
-    const now: i64 = @truncate(std.Io.Clock.now(.real, io).toNanoseconds());
-    if (now < 0) return r;
-    const t: u64 = @intCast(now);
-    return (t << 16 & 0xFFFF0000) | (r & 0xFFFF);
-}
-
-pub fn puid(io: std.Io, buf: []u8) Crock32Error![]const u8 {
-    return encode(buf, pseudo(io));
-}
-
-pub fn puidCheck(io: std.Io, buf: []u8) Crock32Error![]const u8 {
-    return encodeCheck(buf, pseudo(io));
-}
-
-pub fn puidUpper(io: std.Io, buf: []u8) Crock32Error![]const u8 {
-    return encodeUpper(buf, pseudo(io));
-}
-
-pub fn puidUpperCheck(io: std.Io, buf: []u8) Crock32Error![]const u8 {
-    return encodeUpperCheck(buf, pseudo(io));
+    return rand.int(u32);
 }
 
 test "decode" {
@@ -153,4 +145,10 @@ test "upper round trip" {
     const str = try encodeUpperCheck(buf[0..], 0xFFFFFFFFFFFFFFFF);
     const num = try decodeCheck(str);
     try std.testing.expect(num == 0xFFFFFFFFFFFFFFFF);
+}
+
+test "pseudo" {
+    var buf: [max_buf_len]u8 = undefined;
+    const str = try encode(buf[0..], pseudo(std.testing.io));
+    try std.testing.expect(str.len > 5 and str.len < 8);
 }
